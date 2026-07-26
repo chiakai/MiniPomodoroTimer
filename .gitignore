@@ -1,0 +1,5 @@
+.pio/
+.vscode/
+*.bin
+vendor/T-QT/
+lib/qrcodegen/
