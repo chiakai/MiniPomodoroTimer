@@ -32,6 +32,7 @@
 - 開機後提供 3 分鐘 Wi-Fi Hotspot 與 Web 設定介面。
 - Web 設定會保存至 ESP32 NVS，重新開機仍會套用。
 - 可在 LCD 顯示 Hotspot QR Code、SSID 與 Web IP。
+- 使用 128×128 離屏 Sprite 一次更新完整畫面，降低每秒重繪閃爍。
 - 包含按鍵消抖與長短按互斥判定。
 
 ## 硬體需求

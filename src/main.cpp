@@ -103,6 +103,7 @@ class Button {
 };
 
 TFT_eSPI tft;
+TFT_eSprite screen(&tft);
 Preferences preferences;
 WebServer webServer(80);
 // IO0 only has a short-press action. UINT32_MAX prevents a held press from
@@ -440,12 +441,12 @@ void drawSegmentDigit(int x, int y, int width, int height, uint8_t digit,
   const uint8_t segments = DIGIT_SEGMENTS[digit];
 
   auto horizontal = [&](int sy) {
-    tft.fillRoundRect(x + thickness / 2, sy, width - thickness, thickness,
-                      thickness / 2, color);
+    screen.fillRoundRect(x + thickness / 2, sy, width - thickness, thickness,
+                         thickness / 2, color);
   };
   auto vertical = [&](int sx, int sy) {
-    tft.fillRoundRect(sx, sy + thickness / 2, thickness,
-                      verticalHeight - thickness / 2, thickness / 2, color);
+    screen.fillRoundRect(sx, sy + thickness / 2, thickness,
+                         verticalHeight - thickness / 2, thickness / 2, color);
   };
 
   if (segments & (1 << 0)) horizontal(y);
@@ -458,7 +459,7 @@ void drawSegmentDigit(int x, int y, int width, int height, uint8_t digit,
 }
 
 void drawSessionBar() {
-  tft.fillRect(0, 0, 128, 7, BG);
+  screen.fillRect(0, 0, 128, 7, BG);
   const uint8_t currentWork =
       completedWorkSessions < 4 ? completedWorkSessions + 1 : 4;
   const uint8_t filled =
@@ -471,39 +472,39 @@ void drawSessionBar() {
   for (uint8_t i = 0; i < 4; ++i) {
     const int x = x0 + i * (width + gap);
     if (i < filled) {
-      tft.fillRect(x, 0, width, 7, dimColor());
+      screen.fillRect(x, 0, width, 7, dimColor());
     } else {
-      tft.drawRect(x, 0, width, 7, dimColor());
+      screen.drawRect(x, 0, width, 7, dimColor());
     }
   }
 }
 
 void drawHeader() {
   // Rows 7-8 form the requested 2-pixel gap below the session bar.
-  tft.fillRect(0, 7, 128, 27, BG);
-  tft.setTextDatum(TC_DATUM);
-  tft.setTextColor(dimColor(), BG);
+  screen.fillRect(0, 7, 128, 27, BG);
+  screen.setTextDatum(TC_DATUM);
+  screen.setTextColor(dimColor(), BG);
   const char* title =
       phase == Phase::Work ? "Focus" : (longBreak ? "Time Off" : "Break");
-  tft.drawString(title, 64, 9, 4);
+  screen.drawString(title, 64, 9, 4);
 }
 
 void drawStatusIcon() {
   // Keep the state indicator directly above the right-aligned seconds.
-  tft.fillRect(98, 43, 20, 15, BG);
+  screen.fillRect(98, 43, 20, 15, BG);
   const uint16_t color = dimColor();
   if (running) {
-    tft.fillTriangle(103, 45, 103, 56, 113, 50, color);
+    screen.fillTriangle(103, 45, 103, 56, 113, 50, color);
   } else if (stopped) {
-    tft.fillRect(103, 45, 11, 11, color);
+    screen.fillRect(103, 45, 11, 11, color);
   } else {
-    tft.fillRect(103, 45, 3, 11, color);
-    tft.fillRect(111, 45, 3, 11, color);
+    screen.fillRect(103, 45, 3, 11, color);
+    screen.fillRect(111, 45, 3, 11, color);
   }
 }
 
 void drawTime() {
-  tft.fillRect(0, 34, 128, 67, BG);
+  screen.fillRect(0, 34, 128, 67, BG);
   const uint32_t minutes = remainingSeconds / 60;
   const uint32_t seconds = remainingSeconds % 60;
   constexpr int minuteW = 25;
@@ -517,20 +518,20 @@ void drawTime() {
   drawSegmentDigit(34, y, minuteW, minuteH, minutes % 10, brightColor());
   // Center the colon in the gap between minute x=59 and second x=87.
   constexpr int colonX = (59 + 87) / 2;
-  tft.fillCircle(colonX, secondY + 9, 2, dimColor());
-  tft.fillCircle(colonX, secondY + 25, 2, dimColor());
+  screen.fillCircle(colonX, secondY + 9, 2, dimColor());
+  screen.fillCircle(colonX, secondY + 25, 2, dimColor());
   drawSegmentDigit(87, secondY, secondW, secondH, seconds / 10, dimColor());
   drawSegmentDigit(108, secondY, secondW, secondH, seconds % 10, dimColor());
   drawStatusIcon();
 }
 
 void drawBottomBar(bool showTimesUp) {
-  tft.fillRect(0, 105, 128, 23, BG);
+  screen.fillRect(0, 105, 128, 23, BG);
   if (showTimesUp) {
-    tft.fillRoundRect(3, 108, 122, 17, 3, dimColor());
-    tft.setTextDatum(MC_DATUM);
-    tft.setTextColor(BG, dimColor());
-    tft.drawString("Time's Up", 64, 116, 2);
+    screen.fillRoundRect(3, 108, 122, 17, 3, dimColor());
+    screen.setTextDatum(MC_DATUM);
+    screen.setTextColor(BG, dimColor());
+    screen.drawString("Time's Up", 64, 116, 2);
     return;
   }
 
@@ -544,10 +545,11 @@ void drawBottomBar(bool showTimesUp) {
   constexpr int x0 = 5;
   for (uint8_t i = 0; i < 10; ++i) {
     const int x = x0 + i * (width + gap);
-    tft.drawRoundRect(x, BOTTOM_BAR_Y, width, BOTTOM_BAR_HEIGHT, 2, dimColor());
+    screen.drawRoundRect(x, BOTTOM_BAR_Y, width, BOTTOM_BAR_HEIGHT, 2,
+                         dimColor());
     if (i < lit) {
-      tft.fillRoundRect(x + 2, BOTTOM_BAR_Y + 2, width - 4,
-                        BOTTOM_BAR_HEIGHT - 4, 1, dimColor());
+      screen.fillRoundRect(x + 2, BOTTOM_BAR_Y + 2, width - 4,
+                           BOTTOM_BAR_HEIGHT - 4, 1, dimColor());
     }
   }
 }
@@ -564,6 +566,9 @@ void drawScreen(uint32_t now, bool force = false) {
   drawHeader();
   drawTime();
   drawBottomBar(showTimesUp);
+  // Present the complete frame in one transfer so intermediate clears are
+  // never visible on the physical LCD.
+  screen.pushSprite(0, 0);
   lastDrawnSeconds = remainingSeconds;
   lastTimesUpVisible = showTimesUp;
 }
@@ -743,6 +748,9 @@ void setup() {
 
   tft.init();
   tft.setRotation(0);
+  screen.setColorDepth(16);
+  screen.createSprite(128, 128);
+  screen.fillSprite(BG);
   // Attach PWM after TFT initialization, which otherwise forces BL fully on.
   ledcSetup(BACKLIGHT_PWM_CHANNEL, BACKLIGHT_PWM_FREQUENCY,
             BACKLIGHT_PWM_BITS);

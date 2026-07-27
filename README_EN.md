@@ -34,6 +34,8 @@ Web settings, automatic backlight sleep, and a temporary setup hotspot.
 - Settings are stored in ESP32 NVS and survive reboot.
 - A three-minute setup hotspot starts on every boot.
 - An LCD QR code makes it easy to join the setup hotspot.
+- A 128×128 off-screen sprite presents each frame atomically to prevent
+  visible flicker during second changes.
 
 ## Hardware
 
