@@ -173,6 +173,24 @@ restart until the next boot.
 - Either button wakes the display.
 - The wake-up press is consumed and does not also start, adjust, or reset.
 
+## Flicker-free Rendering
+
+Earlier versions cleared the time, title, and progress regions directly on the
+LCD before redrawing them every second. The brief black interval between the
+clear and redraw operations could appear as a visible flicker, particularly
+while Wi-Fi activity delayed individual drawing operations.
+
+The current firmware uses a 128×128, 16-bit `TFT_eSprite` off-screen buffer:
+
+1. Each frame is cleared and fully rendered in memory.
+2. Digits, titles, icons, and progress bars are completed before presentation.
+3. `pushSprite()` transfers the complete frame to the LCD in one operation, so
+   intermediate drawing states are never visible.
+
+The sprite consumes approximately 32 KB of RAM, which is well within the
+T-QT Pro's available memory. The hotspot QR code is a separate screen and is
+still rendered directly to the LCD.
+
 ## LCD Configuration
 
 | Item | Value |
