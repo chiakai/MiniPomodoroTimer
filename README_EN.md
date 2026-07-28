@@ -20,10 +20,11 @@ Web settings, automatic backlight sleep, and a temporary setup hotspot.
 
 - Default 25-minute work session.
 - Configurable work duration and maximum work duration.
-- Configurable IO47 adjustment step, defaulting to 5 minutes.
+- Configurable Right-button adjustment step, defaulting to 5 minutes.
 - Five-minute short break after each of the first three work sessions.
 - Twenty-minute long break after every fourth work session.
 - Optional automatic start after a break.
+- Work time adjusted with the Right button is remembered across restarts.
 - Seven-segment minute and second display.
 - Ten-segment remaining-time indicator at the bottom.
 - Four-segment session indicator at the top.
@@ -45,29 +46,30 @@ Web settings, automatic backlight sleep, and a temporary setup hotspot.
 | MCU | ESP32-S3 |
 | Flash / PSRAM | 4 MB / 2 MB |
 | LCD | GC9A01, 128×128 |
-| Start/pause button | IO0 |
-| Set/reset button | IO47 |
+| Start/pause button | Left button (GPIO 0) |
+| Set/reset button | Right button (GPIO 47) |
 | LCD reset | IO1 |
 | Backlight | IO10, active-low PWM |
 
-IO1 is connected to LCD Reset and cannot be used as a button. Button
-combinations therefore use IO0 and IO47.
+GPIO 1 is connected to LCD Reset and cannot be used as a button. Button
+combinations therefore use the Left and Right buttons.
 
 ## Controls
 
-### IO0
+### Left button
 
 - Short press: start the countdown.
 - Short press while running: pause.
 - Short press while paused: resume.
-- IO0 has no long-press action.
+- The Left button has no long-press action.
 
-### IO47
+### Right button
 
 Before a work countdown has started:
 
 - Short press: increase work duration by the configured adjustment step.
 - Hold for two seconds: decrease work duration by the configured step.
+- The adjusted work time is saved automatically and restored at the next boot.
 - The default step is five minutes and can be changed in the Web interface.
 - The duration wraps between five minutes and the configured maximum.
 
@@ -76,7 +78,7 @@ During an active work/break cycle:
 - Hold for two seconds to reset the complete cycle.
 - The configured work duration is preserved.
 
-### IO0 + IO47
+### Left + Right buttons
 
 While the boot hotspot is active, press both buttons together to show:
 
@@ -88,13 +90,18 @@ Press either button to leave the QR screen.
 ## Pomodoro Cycle
 
 1. The device boots in a stopped state with the configured work duration.
-2. Press IO0 to start work.
+2. Press the Left button to start work.
 3. A five-minute short break starts automatically after work ends.
-4. After the break, the next work session waits for IO0 by default.
-5. After the fourth work session, a twenty-minute long break starts.
-6. After the long break, the cycle counter resets and the timer stops.
+4. After a short break, the `Break 00:00` screen remains with a dim-red
+   background and black foreground.
+5. Press the Left button to switch to work and start counting down immediately.
+6. After the fourth work session, a twenty-minute long break starts.
+7. The long break remains on a dim-white background with a black
+   `Time Off 00:00` foreground; pressing
+   the Left button resets the cycle counter and immediately starts session one.
 
-The Web option “Auto-start work after a break” can bypass the waiting step.
+The Web option “Auto-start work after a break” bypasses the color-swapped `00:00`
+waiting screen.
 
 ## Display
 
@@ -131,7 +138,7 @@ compensates for this in its color constants.
 | Backlight brightness | 90% |
 | Work duration | 25 minutes |
 | Maximum work duration | 60 minutes |
-| IO47 adjustment step | 5 minutes |
+| Right-button adjustment step | 5 minutes |
 | Short break | 5 minutes |
 | Long break | 20 minutes |
 | Auto-start after break | Off |
@@ -154,7 +161,7 @@ The following open hotspot starts on every boot:
 The settings page title is `Pomodoro Timer`. It can configure:
 
 - Backlight brightness in 10% steps.
-- IO47 adjustment step in minutes.
+- Right-button adjustment step in minutes.
 - Maximum work duration.
 - Work duration.
 - Short-break duration.

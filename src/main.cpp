@@ -116,6 +116,7 @@ bool running = false;
 bool countdownActive = false;
 bool stopped = true;
 bool longBreak = false;
+bool waitingAfterBreak = false;
 bool backlightSleeping = false;
 bool hotspotActive = false;
 bool qrVisible = false;
@@ -331,7 +332,7 @@ String pomodoroSettingsPage(const char* message = "") {
             "min='10' max='100' step='10' value='");
   html += brightnessPercent;
   html += F("' oninput=\"bv.value=this.value+'%'\">"
-            "<label>IO47 adjustment step (minutes)</label>"
+            "<label>Right-button adjustment step (minutes)</label>"
             "<input name='step' type='number' min='1' max='60' value='");
   html += adjustmentMinutes;
   html += F("'><label>Maximum work time (minutes)</label>"
@@ -354,7 +355,28 @@ String pomodoroSettingsPage(const char* message = "") {
       "> Auto-start work after a break</label><div class='row'>"
       "<button class='save' type='submit'>Save</button>"
       "<button class='reset' type='submit' formaction='/reset'>Reset</button>"
-      "</div></form><p>The hotspot turns off three minutes after boot.</p>"
+      "</div></form>"
+      "<h2>使用說明 / Instructions</h2>"
+      "<ul>"
+      "<li><b>左鍵 / Left:</b> 開始、暫停或繼續倒數。休息結束的"
+      "配色互換的 00:00 畫面中，按下後會立即開始下一次工作。</li>"
+      "<li><b>右鍵 / Right:</b> 工作尚未開始時短按增加、長按 2 秒"
+      "減少工作時間，調整後會自動保存並於下次開機使用；倒數流程中"
+      "長按 2 秒重設整個循環。</li>"
+      "<li><b>左鍵＋右鍵 / Left + Right:</b> Hotspot 啟用期間顯示"
+      "連線 QR Code 與 Web IP。</li>"
+      "</ul>"
+      "<h2>設定說明 / Settings</h2>"
+      "<ul>"
+      "<li>Backlight：10 段背光亮度。</li>"
+      "<li>Right-button adjustment step：右鍵每次增減的分鐘數。</li>"
+      "<li>Maximum work time：可設定的工作時間上限。</li>"
+      "<li>Work/Short break/Long break：各階段分鐘數。</li>"
+      "<li>Auto-start：休息結束後直接開始工作，不停留在配色互換的"
+      " 00:00 畫面。</li>"
+      "<li>Save 會保存到裝置；Reset 會回復所有預設值。</li>"
+      "</ul>"
+      "<p>The hotspot turns off three minutes after boot.</p>"
       "</body></html>");
   return html;
 }
@@ -423,12 +445,19 @@ void stopHotspot() {
   }
 }
 
+uint16_t backgroundColor() {
+  if (!waitingAfterBreak) return BG;
+  return longBreak ? DIM_WHITE : DIM_RED;
+}
+
 uint16_t brightColor() {
+  if (waitingAfterBreak) return BG;
   if (phase == Phase::Work) return BRIGHT_GREEN;
   return longBreak ? BRIGHT_WHITE : BRIGHT_RED;
 }
 
 uint16_t dimColor() {
+  if (waitingAfterBreak) return BG;
   if (phase == Phase::Work) return DIM_GREEN;
   return longBreak ? DIM_WHITE : DIM_RED;
 }
@@ -459,7 +488,7 @@ void drawSegmentDigit(int x, int y, int width, int height, uint8_t digit,
 }
 
 void drawSessionBar() {
-  screen.fillRect(0, 0, 128, 7, BG);
+  screen.fillRect(0, 0, 128, 7, backgroundColor());
   const uint8_t currentWork =
       completedWorkSessions < 4 ? completedWorkSessions + 1 : 4;
   const uint8_t filled =
@@ -481,9 +510,9 @@ void drawSessionBar() {
 
 void drawHeader() {
   // Rows 7-8 form the requested 2-pixel gap below the session bar.
-  screen.fillRect(0, 7, 128, 27, BG);
+  screen.fillRect(0, 7, 128, 27, backgroundColor());
   screen.setTextDatum(TC_DATUM);
-  screen.setTextColor(dimColor(), BG);
+  screen.setTextColor(dimColor(), backgroundColor());
   const char* title =
       phase == Phase::Work ? "Focus" : (longBreak ? "Time Off" : "Break");
   screen.drawString(title, 64, 9, 4);
@@ -491,7 +520,7 @@ void drawHeader() {
 
 void drawStatusIcon() {
   // Keep the state indicator directly above the right-aligned seconds.
-  screen.fillRect(98, 43, 20, 15, BG);
+  screen.fillRect(98, 43, 20, 15, backgroundColor());
   const uint16_t color = dimColor();
   if (running) {
     screen.fillTriangle(103, 45, 103, 56, 113, 50, color);
@@ -504,7 +533,7 @@ void drawStatusIcon() {
 }
 
 void drawTime() {
-  screen.fillRect(0, 34, 128, 67, BG);
+  screen.fillRect(0, 34, 128, 67, backgroundColor());
   const uint32_t minutes = remainingSeconds / 60;
   const uint32_t seconds = remainingSeconds % 60;
   constexpr int minuteW = 25;
@@ -526,11 +555,11 @@ void drawTime() {
 }
 
 void drawBottomBar(bool showTimesUp) {
-  screen.fillRect(0, 105, 128, 23, BG);
+  screen.fillRect(0, 105, 128, 23, backgroundColor());
   if (showTimesUp) {
     screen.fillRoundRect(3, 108, 122, 17, 3, dimColor());
     screen.setTextDatum(MC_DATUM);
-    screen.setTextColor(BG, dimColor());
+    screen.setTextColor(backgroundColor(), dimColor());
     screen.drawString("Time's Up", 64, 116, 2);
     return;
   }
@@ -562,6 +591,7 @@ void drawScreen(uint32_t now, bool force = false) {
       showTimesUp == lastTimesUpVisible) {
     return;
   }
+  screen.fillSprite(backgroundColor());
   drawSessionBar();
   drawHeader();
   drawTime();
@@ -579,6 +609,7 @@ void prepareWork(bool resetSessions) {
   countdownActive = false;
   stopped = true;
   longBreak = false;
+  waitingAfterBreak = false;
   if (resetSessions) completedWorkSessions = 0;
   totalSeconds = configuredWorkSeconds;
   remainingSeconds = configuredWorkSeconds;
@@ -603,18 +634,24 @@ void beginRest(uint32_t now) {
 
 void finishRest(uint32_t now) {
   const bool completedLongBreak = longBreak;
-  prepareWork(completedLongBreak);
-  // A normal break waits as a paused cycle; a completed four-session cycle
-  // returns to the stopped state.
-  stopped = completedLongBreak;
-  timesUpUntil = now + TIMES_UP_MS;
   if (autoStartAfterBreak) {
+    prepareWork(completedLongBreak);
     running = true;
     countdownActive = true;
     stopped = false;
-    timesUpUntil = 0;
     nextTickAt = now + 1000;
+    return;
   }
+
+  // Remain on the completed break at 00:00 and invert the whole frame until
+  // the left button explicitly starts the next work session.
+  running = false;
+  countdownActive = true;
+  stopped = true;
+  waitingAfterBreak = true;
+  remainingSeconds = 0;
+  timesUpUntil = 0;
+  lastDrawnSeconds = UINT32_MAX;
 }
 
 void changeWorkMinutes(int direction) {
@@ -627,6 +664,8 @@ void changeWorkMinutes(int direction) {
   configuredWorkSeconds = static_cast<uint32_t>(minutes) * 60U;
   totalSeconds = configuredWorkSeconds;
   remainingSeconds = configuredWorkSeconds;
+  // A manual adjustment becomes the new startup work time.
+  preferences.putUShort("workMinutes", minutes);
   lastDrawnSeconds = UINT32_MAX;
 }
 
@@ -699,6 +738,16 @@ void handleButtons(uint32_t now) {
 
   if (startShort) {
     lastActivityAt = now;
+    if (waitingAfterBreak) {
+      const bool completedLongBreak = longBreak;
+      prepareWork(completedLongBreak);
+      running = true;
+      countdownActive = true;
+      stopped = false;
+      nextTickAt = now + 1000;
+      lastDrawnSeconds = UINT32_MAX;
+      return;
+    }
     running = !running;
     if (running) {
       countdownActive = true;
