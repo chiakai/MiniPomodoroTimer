@@ -106,9 +106,7 @@ TFT_eSPI tft;
 TFT_eSprite screen(&tft);
 Preferences preferences;
 WebServer webServer(80);
-// IO0 only has a short-press action. UINT32_MAX prevents a held press from
-// becoming a separate long-press event.
-Button startButton(START_BUTTON_PIN, UINT32_MAX);
+Button startButton(START_BUTTON_PIN, SET_LONG_PRESS_MS);
 Button setButton(SET_BUTTON_PIN, SET_LONG_PRESS_MS);
 
 Phase phase = Phase::Work;
@@ -121,6 +119,7 @@ bool backlightSleeping = false;
 bool hotspotActive = false;
 bool qrVisible = false;
 bool chordActive = false;
+bool displayRotated = false;
 uint8_t completedWorkSessions = 0;
 uint8_t brightnessPercent = DEFAULT_BRIGHTNESS_PERCENT;
 uint8_t adjustmentMinutes = DEFAULT_ADJUSTMENT_MINUTES;
@@ -359,7 +358,9 @@ String pomodoroSettingsPage(const char* message = "") {
       "<h2>使用說明 / Instructions</h2>"
       "<ul>"
       "<li><b>左鍵 / Left:</b> 開始、暫停或繼續倒數。休息結束的"
-      "配色互換的 00:00 畫面中，按下後會立即開始下一次工作。</li>"
+      "配色互換的 00:00 畫面中，按下後會立即開始下一次工作。長按"
+      " 2 秒可旋轉畫面 180 度並交換左右鍵功能；旋轉後長按新的左鍵"
+      "可轉回。</li>"
       "<li><b>右鍵 / Right:</b> 工作尚未開始時短按增加、長按 2 秒"
       "減少工作時間，調整後會自動保存並於下次開機使用；倒數流程中"
       "長按 2 秒重設整個循環。</li>"
@@ -732,9 +733,25 @@ void handleButtons(uint32_t now) {
     return;
   }
 
-  const bool startShort = startButton.takeShortPress();
-  const bool setShort = setButton.takeShortPress();
-  startButton.takeLongPress();  // IO0 deliberately has no long-press action.
+  const bool gpio0Short = startButton.takeShortPress();
+  const bool gpio0Long = startButton.takeLongPress();
+  const bool gpio47Short = setButton.takeShortPress();
+  const bool gpio47Long = setButton.takeLongPress();
+  // Button roles follow the display orientation so the physical left/right
+  // controls remain intuitive when the device is held upside down.
+  const bool startShort = displayRotated ? gpio47Short : gpio0Short;
+  const bool startLong = displayRotated ? gpio47Long : gpio0Long;
+  const bool setShort = displayRotated ? gpio0Short : gpio47Short;
+  const bool setLong = displayRotated ? gpio0Long : gpio47Long;
+
+  if (startLong) {
+    lastActivityAt = now;
+    displayRotated = !displayRotated;
+    tft.setRotation(displayRotated ? 2 : 0);
+    lastDrawnSeconds = UINT32_MAX;
+    drawScreen(now, true);
+    return;
+  }
 
   if (startShort) {
     lastActivityAt = now;
@@ -758,7 +775,7 @@ void handleButtons(uint32_t now) {
     lastDrawnSeconds = UINT32_MAX;
   }
 
-  if (setButton.takeLongPress()) {
+  if (setLong) {
     lastActivityAt = now;
     if (countdownActive || phase == Phase::Rest) {
       resetCountdown();

@@ -61,7 +61,10 @@ combinations therefore use the Left and Right buttons.
 - Short press: start the countdown.
 - Short press while running: pause.
 - Short press while paused: resume.
-- The Left button has no long-press action.
+- Hold for two seconds: rotate the display by 180 degrees and swap the Left and
+  Right button roles.
+- After rotation, the original Right button is the new Left button; hold it for
+  two seconds to return to the normal orientation.
 
 ### Right button
 
