@@ -65,6 +65,8 @@ combinations therefore use the Left and Right buttons.
   Right button roles.
 - After rotation, the original Right button is the new Left button; hold it for
   two seconds to return to the normal orientation.
+- The selected orientation is saved automatically and restored at the next
+  boot. Web Reset restores the normal orientation.
 
 ### Right button
 

@@ -173,6 +173,7 @@ void loadSettings() {
       preferences.getUShort("longMinutes", LONG_BREAK_SECONDS / 60U);
   autoStartAfterBreak =
       preferences.getBool("autoStart", DEFAULT_AUTO_START);
+  displayRotated = preferences.getBool("rotated", false);
 
   brightnessPercent =
       constrain(brightnessPercent, static_cast<uint8_t>(10),
@@ -204,6 +205,7 @@ void saveSettings() {
   preferences.putUShort("breakMinutes", shortBreakSeconds / 60U);
   preferences.putUShort("longMinutes", longBreakSeconds / 60U);
   preferences.putBool("autoStart", autoStartAfterBreak);
+  preferences.putBool("rotated", displayRotated);
 }
 
 void restoreDefaultSettings() {
@@ -214,7 +216,10 @@ void restoreDefaultSettings() {
   shortBreakSeconds = SHORT_BREAK_SECONDS;
   longBreakSeconds = LONG_BREAK_SECONDS;
   autoStartAfterBreak = DEFAULT_AUTO_START;
+  displayRotated = false;
   saveSettings();
+  tft.setRotation(0);
+  lastDrawnSeconds = UINT32_MAX;
   if (!backlightSleeping) setBacklight(brightnessPercent);
 }
 
@@ -360,7 +365,7 @@ String pomodoroSettingsPage(const char* message = "") {
       "<li><b>左鍵 / Left:</b> 開始、暫停或繼續倒數。休息結束的"
       "配色互換的 00:00 畫面中，按下後會立即開始下一次工作。長按"
       " 2 秒可旋轉畫面 180 度並交換左右鍵功能；旋轉後長按新的左鍵"
-      "可轉回。</li>"
+      "可轉回。螢幕方向會自動保存並於下次開機套用。</li>"
       "<li><b>右鍵 / Right:</b> 工作尚未開始時短按增加、長按 2 秒"
       "減少工作時間，調整後會自動保存並於下次開機使用；倒數流程中"
       "長按 2 秒重設整個循環。</li>"
@@ -747,6 +752,7 @@ void handleButtons(uint32_t now) {
   if (startLong) {
     lastActivityAt = now;
     displayRotated = !displayRotated;
+    preferences.putBool("rotated", displayRotated);
     tft.setRotation(displayRotated ? 2 : 0);
     lastDrawnSeconds = UINT32_MAX;
     drawScreen(now, true);
@@ -813,7 +819,7 @@ void setup() {
   loadSettings();
 
   tft.init();
-  tft.setRotation(0);
+  tft.setRotation(displayRotated ? 2 : 0);
   screen.setColorDepth(16);
   screen.createSprite(128, 128);
   screen.fillSprite(BG);
